@@ -23,12 +23,18 @@ def _decode_datetime(nc_path: Path, basin_id: str) -> pd.DatetimeIndex:
         if basin_id not in root.groups:
             raise KeyError(f"Basin group {basin_id!r} not found in {nc_path}")
         tvar = root.groups[basin_id].variables["datetime"]
-        units = getattr(tvar, "units", None)
+        values = tvar[:]
+        units = getattr(tvar, "units", "") or ""
+        if "since 1970" in units:
+            return pd.to_datetime(values, unit="s", origin="unix")
         calendar = getattr(tvar, "calendar", "standard")
-        if units:
-            decoded = netCDF4.num2date(tvar[:], units=units, calendar=calendar)
-            return pd.DatetimeIndex(pd.to_datetime(decoded))
-    raise KeyError(f"'datetime' not found in group {basin_id}")
+        decoded = netCDF4.num2date(
+            values,
+            units=units,
+            calendar=calendar,
+            only_use_cftime_datetimes=False,
+        )
+        return pd.DatetimeIndex(pd.to_datetime(decoded))
 
 
 def load_ensemble_netcdf_long(nc_path: Path) -> pd.DataFrame:
