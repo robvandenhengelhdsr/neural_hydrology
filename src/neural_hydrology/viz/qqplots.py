@@ -10,13 +10,13 @@ from plotly.subplots import make_subplots
 import xarray as xr
 
 from neural_hydrology.paths import get_path
+from neural_hydrology.utils.attributes import get_area
+from neural_hydrology.utils.raw_discharge import (
+    DISCHARGE_CSV_COL_NAMES,
+    find_discharge_file_by_code,
+    read_raw_discharge,
+)
 from neural_hydrology.utils.results import evaluate
-
-DISCHARGE_CSV_COL_NAMES = {
-    "gemaal": "debiet_x_IB",
-    "stuw": "debiet",
-    "adcp": "debiet",
-}
 
 
 def weekly_totals_from_netcdf(
@@ -41,31 +41,9 @@ def weekly_totals_from_csv(
     """
     Also converts from m3/s to m3/h
     """
-    df = pd.read_csv(
-        csv_path,
-        sep=",",
-        usecols=["datetime", variable],
-        parse_dates=["datetime"],
-        dayfirst=True  # important for DD/MM/YYYY
-    )
-
-    df["datetime"] = pd.to_datetime(df["datetime"])
-    df = df.set_index("datetime")
-    df[variable] = df[variable].clip(0)
-    df[variable] = (df[variable] * 3600).astype(float)
-    df[variable] = df[variable].astype(float)
+    df = read_raw_discharge(csv_path=csv_path, variable=variable)
     df_weekly = df.resample('W').sum()
     return df_weekly
-
-
-def get_area(basin: str) -> float:
-    """Get the area of given `basin` from the static attributes csv"""
-    csv_path = get_path("DATA_DIR") / "attributes" / "polders_data_aangevuld.csv"
-    df = pd.read_csv(csv_path)
-    row = df.loc[df["SHAPE_ID"] == basin, "oppervlak"]
-    if row.empty:
-        return None
-    return row.iloc[0]
 
 
 def get_overlap(
@@ -85,17 +63,6 @@ def get_overlap(
 
     overlap = df1_selection.join(df2_selection, how="inner")
     return overlap
-
-
-def find_discharge_file_by_code(folder: Path, code) -> Tuple[Path, str] | Tuple[None, None]:
-    folder = Path(folder)
-
-    for file in folder.glob("*.csv"):
-        _, _, filename_code, filename_structure_type, _ = file.stem.split("_")
-        if code == filename_code:
-            return file, filename_structure_type
-
-    return None, None
 
 
 def mean_sim_per_measured_quantile(x, y, n_quantiles):
@@ -296,20 +263,20 @@ if __name__ == "__main__":
     # basins = ["AFVG41"]
     print(basins)
 
-    # NetCDFs maken per polder
-    for basin in basins:
-        netcdf_output = netcdf_output_dir / f"simulation_output_{basin}.nc"
-        evaluate(
-            run_dir=run_dir,
-            period="test",
-            basin=basin,
-            time_resolution="1h",
-            netcdf_output_file=netcdf_output,
-            config_overrides={
-                "device": "cpu",
-                "data_dir": str(data_dir),
-            }
-        )
+    # # NetCDFs maken per polder
+    # for basin in basins:
+    #     netcdf_output = netcdf_output_dir / f"simulation_output_{basin}.nc"
+    #     evaluate(
+    #         run_dir=run_dir,
+    #         period="test",
+    #         basin=basin,
+    #         time_resolution="1h",
+    #         netcdf_output_file=netcdf_output,
+    #         config_overrides={
+    #             "device": "cpu",
+    #             "data_dir": str(data_dir),
+    #         }
+    #     )
 
     weekly_totals_dfs = []
     titles = []
