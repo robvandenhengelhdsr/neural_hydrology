@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 import logging
-import re
+import urllib.error
 import urllib.parse
 import urllib.request
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -26,6 +26,9 @@ UURGEGEVENS_VARS = "DD:FF:T:Q"
 
 TENMIN_DATASET = "10-minute-in-situ-meteorological-observations"
 DATASET_VERSION = "1.0"
+# KNMI 10-min NetCDF: end time of the 10-minute interval (UTC) in filename.
+TENMIN_FILENAME_PREFIX = "KMDS__OPER_P___10M_OBS_L2_"
+DEFAULT_TENMIN_MAX_DOWNLOADS = 100
 
 
 def _now_utc_hour_end() -> datetime:
@@ -49,97 +52,100 @@ def _end_utc_from_env_or_now() -> datetime:
     return _now_utc_hour_end()
 
 
-def _parse_endtime_from_filename(filename: str) -> pd.Timestamp | None:
-    """
-    Try to parse the *end timestamp* (UTC) from a KNMI Open Data filename.
-
-    Supports common patterns documented by KNMI. If parsing fails, return None.
-    """
-    name = Path(filename).name
-
-    # hourly-observations-YYYYMMDD-HH.nc  -> endtime is next hour
-    m = re.search(r"(\d{8})-(\d{2})\.nc$", name)
-    if m:
-        ymd = m.group(1)
-        hh = int(m.group(2))
-        try:
-            start = pd.to_datetime(f"{ymd}{hh:02d}", format="%Y%m%d%H", utc=True)
-            return start + pd.Timedelta(hours=1)
-        except Exception:
-            return None
-
-    # Generic 12 digits (YYYYMMDDHHMM) interpreted as endtime
-    m = re.search(r"(\d{12})", name)
-    if m:
-        raw = m.group(1)
-        try:
-            return pd.to_datetime(raw, format="%Y%m%d%H%M", utc=True)
-        except Exception:
-            return None
-
-    # Generic 10 digits (YYYYMMDDHH) interpreted as endtime at full hour
-    m = re.search(r"(\d{10})", name)
-    if m:
-        raw = m.group(1)
-        try:
-            return pd.to_datetime(raw, format="%Y%m%d%H", utc=True)
-        except Exception:
-            return None
-
-    return None
+def _tenmin_filename_for_endtime(ts_utc: pd.Timestamp) -> str:
+    """Build KNMI 10-min filename for interval end time (UTC)."""
+    t = pd.Timestamp(ts_utc).tz_convert("UTC")
+    return f"{TENMIN_FILENAME_PREFIX}{t.strftime('%Y%m%d%H%M')}.nc"
 
 
-def _iter_filenames_old_to_new(
+def _download_tenmin_gap_files(
     client: KnmiOpenDataClient,
     *,
-    dataset: str,
-    version: str,
-    page_size: int = 250,
-) -> Iterable[str]:
+    tmp_10m: Path,
+    start_recent: pd.Timestamp,
+    end_recent: pd.Timestamp,
+    max_downloads: int = DEFAULT_TENMIN_MAX_DOWNLOADS,
+) -> list[Path]:
     """
-    Iterate filenames from old -> new (ascending).
+    Download 10-min station NetCDF files for (start_recent, end_recent] by constructed filename.
 
-    Uses paging via start_after_filename to avoid scanning the full catalog in one response.
+    Avoids scanning the full KNMI catalog (years of files). Reuses local cache in ``tmp_10m``.
     """
-    start_after: str | None = None
-    while True:
-        try:
-            files = client.list_files(
-                dataset=dataset,
-                version=version,
-                max_keys=page_size,
-                order_by="filename",
-                sorting="asc",
-                start_after_filename=start_after,
-            )
-        except KnmiRequestBudgetExceeded:
-            return
-        names = [f.get("filename") for f in files if isinstance(f.get("filename"), str)]
-        if not names:
-            return
-        for n in names:
-            yield n
-        start_after = names[-1]
+    start_10m = pd.Timestamp(start_recent).tz_convert("UTC") + pd.Timedelta(minutes=10)
+    end_10m = pd.Timestamp(end_recent).tz_convert("UTC").floor("10min")
+    if end_10m < start_10m:
+        LOGGER.info(
+            "Cabauw 10-min: empty window after rounding (%s, %s] (hourly last=%s).",
+            start_10m,
+            end_10m,
+            start_recent,
+        )
+        return []
 
+    expected_times = pd.date_range(start=start_10m, end=end_10m, freq="10min", tz="UTC")
+    LOGGER.info(
+        "Cabauw 10-min: %d slots from %s to %s (cache=%s, max_downloads=%d).",
+        len(expected_times),
+        start_10m,
+        end_10m,
+        tmp_10m,
+        max_downloads,
+    )
 
-def _select_files_by_timerange(
-    filenames: Iterable[str], *, start_inclusive: pd.Timestamp, end_inclusive: pd.Timestamp
-) -> tuple[list[str], list[str]]:
-    """
-    Select files whose parsed endtime is within [start, end].
+    paths: list[Path] = []
+    from_cache = 0
+    downloads_ok = 0
+    missing = 0
+    skipped_no_budget = 0
+    budget_notice_logged = False
 
-    Returns (selected, unparsed) where unparsed couldn't be parsed from filename.
-    """
-    selected: list[str] = []
-    unparsed: list[str] = []
-    for n in filenames:
-        ts = _parse_endtime_from_filename(n)
-        if ts is None:
-            unparsed.append(n)
+    for i, t in enumerate(expected_times, start=1):
+        fname = _tenmin_filename_for_endtime(t)
+        local_path = tmp_10m / fname
+        if local_path.is_file():
+            paths.append(local_path)
+            from_cache += 1
             continue
-        if start_inclusive <= ts <= end_inclusive:
-            selected.append(n)
-    return selected, unparsed
+        if downloads_ok >= max_downloads:
+            skipped_no_budget += 1
+            continue
+        try:
+            p = client.download_file(
+                dataset=TENMIN_DATASET,
+                version=DATASET_VERSION,
+                filename=fname,
+                out_dir=tmp_10m,
+                log_each_download=False,
+            )
+            paths.append(p)
+            downloads_ok += 1
+            if downloads_ok == max_downloads and not budget_notice_logged:
+                LOGGER.info(
+                    "Cabauw 10-min: reached max_downloads=%d; continuing for local cache only.",
+                    max_downloads,
+                )
+                budget_notice_logged = True
+        except KnmiRequestBudgetExceeded as e:
+            LOGGER.warning("Cabauw 10-min: stopping downloads due to request budget (%s).", e)
+            break
+        except (FileNotFoundError, urllib.error.HTTPError):
+            missing += 1
+
+    LOGGER.info(
+        "Cabauw 10-min: done — paths=%d from_cache=%d downloads=%d missing=%d skipped_after_max_downloads=%d",
+        len(paths),
+        from_cache,
+        downloads_ok,
+        missing,
+        skipped_no_budget,
+    )
+    if not paths and len(expected_times) > 0:
+        LOGGER.warning(
+            "Cabauw 10-min: no files in gap window (%s, %s]; meteo may lag after last uurgegevens hour.",
+            start_recent,
+            end_recent,
+        )
+    return paths
 
 
 def _find_time_coord(ds: xr.Dataset) -> str:
@@ -526,34 +532,48 @@ def load_knmi_station_cabauw_hourly(*, days: int = 365, station_name_contains: s
 
     tenmin_paths: list[Path] = []
     if start_recent_excl <= end_recent:
-        for n in _iter_filenames_old_to_new(client, dataset=TENMIN_DATASET, version=DATASET_VERSION, page_size=250):
-            ts = _parse_endtime_from_filename(n)
-            if ts is None:
-                continue
-            if ts <= start_recent:
-                continue
-            if ts > end_recent:
-                break
-            out_path = tmp_10m / n
-            if out_path.exists():
-                tenmin_paths.append(out_path)
-                continue
-            try:
-                tenmin_paths.append(
-                    client.download_file(dataset=TENMIN_DATASET, version=DATASET_VERSION, filename=n, out_dir=tmp_10m)
-                )
-            except KnmiRequestBudgetExceeded:
-                break
+        LOGGER.info(
+            "Cabauw 10-min gap: uurgegevens last=%s, filling through %s.",
+            start_recent,
+            end_recent,
+        )
+        tenmin_paths = _download_tenmin_gap_files(
+            client,
+            tmp_10m=tmp_10m,
+            start_recent=start_recent,
+            end_recent=end_recent,
+        )
+    else:
+        LOGGER.info(
+            "Cabauw 10-min: no gap (uurgegevens last=%s >= end_recent=%s).",
+            start_recent,
+            end_recent,
+        )
 
     df_10m_raw, _ = _load_station_timeseries_from_files(
         tenmin_paths, station_name_contains=station_name_contains, expected_interval="10min"
     )
     df_recent_hourly = _agg_10min_to_hour(df_10m_raw, min_steps_per_hour=5)
 
-    if df_recent_hourly.empty:
+    if df_recent_hourly.empty and start_recent_excl <= end_recent:
+        LOGGER.warning(
+            "Cabauw 10-min: gap (%s, %s] not filled (%d raw files); using uurgegevens only through %s.",
+            start_recent,
+            end_recent,
+            len(tenmin_paths),
+            start_recent,
+        )
+        merged = df_hourly
+    elif df_recent_hourly.empty:
         merged = df_hourly
     else:
         merged = df_hourly.combine_first(df_recent_hourly[["temperatuur", "u", "v", "straling"]]).sort_index()
+        LOGGER.info(
+            "Cabauw meteo merged: uurgegevens through %s + 10-min through %s (%d hourly gap rows).",
+            df_hourly.index.max(),
+            df_recent_hourly.index.max(),
+            len(df_recent_hourly),
+        )
 
     return merged[["temperatuur", "u", "v", "straling"]].sort_index()
 

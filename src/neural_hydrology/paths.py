@@ -2,11 +2,23 @@
 
 from __future__ import annotations
 
+import logging
 import os
 from functools import lru_cache
 from pathlib import Path
 
 from dotenv import dotenv_values, load_dotenv
+
+# Databricks/Spark: suppress noisy Py4J bridge logs when scripts set root logging to INFO.
+_PY4J_LOGGERS = ("py4j", "py4j.java_gateway", "py4j.clientserver")
+
+
+def _suppress_py4j_logging() -> None:
+    for name in _PY4J_LOGGERS:
+        logging.getLogger(name).setLevel(logging.ERROR)
+
+
+_suppress_py4j_logging()
 
 # Env key -> default path relative to project root (or special handling).
 _PATH_DEFAULTS: dict[str, str] = {
@@ -89,7 +101,7 @@ def _resolve_path_value(key: str, env: dict[str, str | None], *, _stack: set[str
 
     raw = env.get(key)
     if raw is not None and str(raw).strip():
-        path = Path(str(raw).expanduser())
+        path = Path(str(raw)).expanduser()
         if not path.is_absolute():
             path = get_project_root() / path
         return path.resolve()
