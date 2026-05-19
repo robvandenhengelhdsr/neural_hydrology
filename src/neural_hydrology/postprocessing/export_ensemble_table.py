@@ -1,5 +1,8 @@
 """Export grouped ensemble NetCDF inference output to a long-format Unity Catalog table."""
 
+from typing import Literal
+
+
 from __future__ import annotations
 
 import logging
@@ -79,7 +82,7 @@ def load_ensemble_netcdf_long(nc_path: Path) -> pd.DataFrame:
             ds.close()
 
     df = pd.concat(parts, ignore_index=True)
-    df = df[list(OUTPUT_COLUMNS)].sort_values(
+    df = df[list[Literal['datetime', 'ensemble_id', 'afvoergeb_id', 'value']](OUTPUT_COLUMNS)].sort_values(
         ["afvoergeb_id", "ensemble_id", "datetime"],
         ignore_index=True,
     )
@@ -119,7 +122,7 @@ def write_ensemble_table(spark, df: pd.DataFrame, table_name: str) -> None:
         ]
     )
 
-    out = df[list(OUTPUT_COLUMNS)].copy()
+    out = df[list[Literal['datetime', 'ensemble_id', 'afvoergeb_id', 'value']](OUTPUT_COLUMNS)].copy()
     out["datetime"] = pd.to_datetime(out["datetime"])
 
     sdf = spark.createDataFrame(out, schema=schema)
