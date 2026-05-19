@@ -1,21 +1,14 @@
 from __future__ import annotations
 
 import logging
-import sys
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
 
 import pandas as pd
 
-_PROJECT_ROOT = Path(__file__).resolve().parents[3]
-if str(_PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(_PROJECT_ROOT))
-
-from neural_hydrology.scripts.preprocessing.meteo.import_radar_mfbs_historical import import_mfbs_historical_last_year
-from neural_hydrology.scripts.preprocessing.meteo.import_radar_rtcor_recent import import_rtcor_from
-from dotenv import dotenv_values
-
-from neural_hydrology.scripts.preprocessing.meteo.knmi_open_data import HISTORICAL_FETCH_END_OFFSET_HOURS
+from neural_hydrology.paths import load_env
+from neural_hydrology.preprocessing.meteo.import_radar_mfbs_historical import import_mfbs_historical_last_year
+from neural_hydrology.preprocessing.meteo.import_radar_rtcor_recent import import_rtcor_from
+from neural_hydrology.preprocessing.meteo.knmi_open_data import HISTORICAL_FETCH_END_OFFSET_HOURS
 
 LOGGER = logging.getLogger(__name__)
 
@@ -43,8 +36,7 @@ def load_precip_radar_hourly_by_shape(*, days: int = 365, rtcor_max_downloads: i
     """
     # Optional deterministic end time (UTC) using ENSEMBLE_STARTTIME (YYYYMMDDHH) from neural_hydrology/.env,
     # then extend by HISTORICAL_FETCH_END_OFFSET_HOURS (HARMONIE 6-hour ensemble window).
-    nh_root = Path(__file__).resolve().parents[3]
-    env = dotenv_values(nh_root / ".env")
+    env = load_env()
     end_utc: datetime | None = None
     est = env.get("ENSEMBLE_STARTTIME")
     if est:

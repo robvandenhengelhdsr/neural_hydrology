@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 import torch
+from neural_hydrology.paths import get_path
 from neuralhydrology.evaluation import metrics,get_tester
 from neuralhydrology.nh_run import start_run
 from neuralhydrology.utils.config import Config
@@ -81,7 +82,7 @@ for polder in polders:
 
     try:
     # train model
-        config_path = Path(__file__).parent.parent.parent / "config.yml"
+        config_path = get_path("CONFIG_PATH")
         start_run(config_file=config_path)
 
         # evaluate model

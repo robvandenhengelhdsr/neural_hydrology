@@ -5,9 +5,11 @@ import numpy as np
 import ipywidgets as widgets
 from IPython.display import display
 
+from neural_hydrology.paths import get_path
+
 #%%
 # Read the CSV file with geometry information
-afvoergebieden_df = gpd.read_file('data/attributes/polders_data_aangevuld.csv')
+afvoergebieden_df = gpd.read_file(get_path("DATA_DIR") / "attributes" / "polders_data_aangevuld.csv")
 
 # Convert the geom_simple column from string to geometry
 afvoergebieden_df['geometry'] = gpd.GeoSeries.from_wkt(afvoergebieden_df['geom_simple'])

@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from dotenv import dotenv_values
+from neural_hydrology.paths import load_env
 
 LOGGER = logging.getLogger(__name__)
 
@@ -37,9 +37,7 @@ class KnmiOpenDataClient:
 
     @staticmethod
     def from_neural_hydrology_env(*, max_requests: int = DEFAULT_MAX_REQUESTS_PER_RUN) -> "KnmiOpenDataClient":
-        # File is in neural_hydrology/scripts/preprocessing/meteo/, so parents[3] is neural_hydrology/
-        root = Path(__file__).resolve().parents[3]
-        env = dotenv_values(root / ".env")
+        env = load_env()
         base_url = env.get("KNMI_API_URL", "https://api.dataplatform.knmi.nl/open-data").rstrip("/")
         api_key = env.get("KNMI_API_KEY")
         if not api_key:

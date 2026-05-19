@@ -3,27 +3,23 @@ from __future__ import annotations
 import argparse
 import logging
 import os
-import sys
 from dataclasses import dataclass
 from pathlib import Path
 import numpy as np
 import pandas as pd
 import xarray as xr
 
-_PROJECT_ROOT = Path(__file__).resolve().parents[3]
-if str(_PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(_PROJECT_ROOT))
-
-from neural_hydrology.scripts.preprocessing.meteo.import_knmi_station_cabauw import (
+from neural_hydrology.paths import get_path
+from neural_hydrology.preprocessing.meteo.import_knmi_station_cabauw import (
     load_knmi_station_cabauw_hourly,
 )
-from neural_hydrology.scripts.preprocessing.meteo.import_meteo_forecast import (
+from neural_hydrology.preprocessing.meteo.import_meteo_forecast import (
     load_harmonie_ensemble_forecast_by_basin,
 )
-from neural_hydrology.scripts.preprocessing.meteo.import_precip_radar_hourly import (
+from neural_hydrology.preprocessing.meteo.import_precip_radar_hourly import (
     load_precip_radar_hourly_by_shape,
 )
-from neural_hydrology.scripts.preprocessing.meteo.radar_hdf5 import read_polders
+from neural_hydrology.preprocessing.meteo.radar_hdf5 import read_polders
 
 LOGGER = logging.getLogger(__name__)
 
@@ -279,8 +275,7 @@ def create_timeseries_files(
     if missing_cfg is None:
         missing_cfg = MissingDataConfig()
 
-    project_root = Path(__file__).resolve().parents[3]
-    data_dir = project_root / "neural_hydrology" / "data_ens"
+    data_dir = get_path("DATA_ENS_DIR")
     out_dir = data_dir / "time_series"
     out_dir.mkdir(parents=True, exist_ok=True)
 

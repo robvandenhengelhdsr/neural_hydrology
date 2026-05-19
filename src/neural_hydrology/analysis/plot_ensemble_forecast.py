@@ -1,12 +1,13 @@
 from pathlib import Path
 
+from neural_hydrology.paths import get_path
 import matplotlib.pyplot as plt
 import numpy as np
 import xarray as xr
 import netCDF4
 
 
-DEFAULT_NETCDF_PATH = (Path(__file__).resolve().parents[2] / "inference_runs" / "polders_hdsr_1h.nc").resolve()
+DEFAULT_NETCDF_PATH = (get_path("INFERENCE_RUNS_DIR") / "polders_hdsr_1h.nc").resolve()
 DEFAULT_TARGET = "afvoer"
 DEFAULT_INTERVALS = (
     (0.05, 0.95),

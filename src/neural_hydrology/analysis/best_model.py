@@ -7,20 +7,23 @@ import numpy as np
 import torch
 import yaml
 from mlflow import MlflowClient
+from neural_hydrology.paths import get_env, get_path, get_project_root, load_env
 from neuralhydrology.nh_run import start_run
 from tensorboard.backend.event_processing.event_accumulator import EventAccumulator
 
 
-os.environ["MLFLOW_TRACKING_URI"] = "databricks"
-
+load_env()
+mlflow_uri = get_env("MLFLOW_TRACKING_URI", "databricks")
+if mlflow_uri:
+    os.environ["MLFLOW_TRACKING_URI"] = mlflow_uri
 
 # Notebook-style options: edit these values before running the file.
-PROJECT_ROOT = Path("/Workspace/Shared/neural_hydrology_fork")
-SOURCE_EXPERIMENT_NAME = "/Shared/hdsr_lstm_optuna_20260319_120530"
-SOURCE_TRIAL_NUMBER = 0
+PROJECT_ROOT = get_project_root()
+SOURCE_EXPERIMENT_NAME = get_env("SOURCE_EXPERIMENT_NAME", "/Shared/hdsr_lstm_optuna_20260319_120530")
+SOURCE_TRIAL_NUMBER = int(get_env("SOURCE_TRIAL_NUMBER", "0") or "0")
 SEEDS = [0, 1, 2, 3, 4]
 OUTPUT_EXPERIMENT_NAME = f"{SOURCE_EXPERIMENT_NAME}_best_model"
-RUNS_DIR = PROJECT_ROOT / "runs"
+RUNS_DIR = get_path("RUNS_DIR")
 CONFIG_DIR = PROJECT_ROOT / "configs_best_model"
 
 

@@ -5,6 +5,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import torch
 
+from neural_hydrology.paths import get_path
 from neuralhydrology.utils.config import Config
 from neuralhydrology.nh_run import start_run,eval_run
 from neuralhydrology.evaluation import metrics, get_tester
@@ -104,7 +105,7 @@ def run_neural_hydrology_model(config_name):
     
 # config_name_list = ["config_simulatie_1.yml", "config_simulatie_2.yml", "config_simulatie_3.yml", "config_simulatie_4.yml", "config_simulatie_5.yml"]
 # config_name_list = ["final_config.yml"]
-config_name_list = [(Path(__file__).parent.parent.parent / "config.yml").resolve()]
+config_name_list = [get_path("CONFIG_PATH")]
     
 # code om batch aan configs te draaien
 for config_name in config_name_list:

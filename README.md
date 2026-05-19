@@ -8,32 +8,29 @@ Het project bevat experimenten met verschillende LSTM varianten voor het voorspe
 
 ## Projectstructuur
 
+De **Git repo-root** bevat projectconfiguratie en data; Python-code staat onder `src/neural_hydrology/` (gangbare src-layout).
+
 ```
-neural_hydrology/
-├── README.md                 # Dit bestand
-├── .gitignore               # Git ignore configuratie
-├── config.yml               # NeuralHydrology run-config (data, model, features, train/valid/test)
-├── requirements.txt          # Python dependencies voor dit project
-├── .env.example              # Voorbeeld van benodigde omgevingsvariabelen
-├── configs/                 # Configuratie bestanden
-│   ├── experiment_configs/  # Specifieke experiment configuraties
-│   └── template_configs/    # Template configuraties
-├── scripts/                 # Python scripts
-│   ├── preprocessing/       # Preprocessing (timeseries + KNMI importers)
-│   ├── training/            # Training scripts
-│   ├── inference/           # Inference (operationele verwachtingen)
-│   ├── analysis/            # Analyse en evaluatie scripts
-│   └── viz/                 # Visualisaties
-├── data/                   # Dataset
-│   ├── attributes/         # Gebiedskenmerken van polders
-│   ├── time_series/        # Tijdreeks data (voorbeelden)
-│   └── hdsr_polders.txt    # Lijst van ids afvoergebieden
-├── data_ens/                # Operationele input data (ensembles)
-│   ├── attributes/          # Attributes voor inference/training op ensembles
-│   ├── time_series/         # NetCDF per gebied: 30 ensembleleden per variabele
-│   └── _tmp_harmonie/        # (cache) gedownloade HARMONIE .tar bestanden
-├── inference_runs/          # Operationele output: ensemble voorspellingen (NetCDF)
-└── notebooks/               # Jupyter notebooks voor analyse
+neural_hydrology/                    # Git repo-root
+├── pyproject.toml
+├── README.md
+├── config.yml                       # NeuralHydrology run-config
+├── requirements.txt
+├── .env.example
+├── data/                            # Voorbeeld-/trainingsdata
+├── data_ens/                        # Operationele ensemble-input
+├── runs/                            # Modelruns (lokaal, gitignored)
+├── inference_runs/                  # Inference-output (gitignored)
+├── notebooks/
+└── src/
+    └── neural_hydrology/            # Python package (pip install -e .)
+        ├── paths.py                 # Pad- en .env-resolutie
+        ├── preprocessing/
+        ├── training/
+        ├── inference/
+        ├── analysis/
+        ├── viz/
+        └── utils/
 ```
 
 ## Datasets
@@ -62,60 +59,99 @@ De configuratie van een run staat in `config.yml`. Voor experimenten maak je hie
 
 ## Belangrijkste scripts
 
+Alle modules staan onder `src/neural_hydrology/`. Start ze na `pip install -e .` met `python -m neural_hydrology.<module>`.
+
 ### Preprocessing (operationeel)
-- `scripts/preprocessing/create_timeseries_files.py` - Bouwt `data_ens/time_series/<SHAPE_ID>.nc` met 30-leden ensembles uit historisch + forecast
+- `preprocessing.create_timeseries_files` — bouwt `data_ens/time_series/<SHAPE_ID>.nc` met 30-leden ensembles
 
 ### Training
-
-- `scripts/training/batch_train_single.py` - Batch training voor single LSTM model per afvoergebied
-- `scripts/training/run_model.py` - Basis model training script voor een of meerdere configuraties
-- `scripts/training/hyperparameter_optimalisatie.py` - Optuna hyperparameter optimalisatie (Databricks + MLflow)
-- `scripts/training/batch_train_model.py` - Retrain/ensemble op basis van gekozen HPO trial (Databricks + MLflow)
+- `training.run_model` — basis training met `config.yml`
+- `training.batch_train_single` — batch training per afvoergebied
+- `training.hyperparameter_optimalisatie` — Optuna HPO (Databricks + MLflow)
+- `training.batch_train_model` — retrain op gekozen HPO-trial
 
 ### Inference (operationeel)
-- `scripts/inference/run_model.py` - Draait ensemble inference vanuit een getrainde run en schrijft output naar `inference_runs/`
+- `inference.run_model` — ensemble inference naar `inference_runs/`
 
 ### Analyse
-
-- `best_model.py` - Evaluatie van beste modellen
-- `map_hdsr.py` - Visualisatie van HDSR gebied
+- `analysis.best_model` — evaluatie beste modellen
+- `analysis.map_hdsr` — visualisatie HDSR-gebied
 
 ## Lokaal gebruik
 
 ### Installatie
 
 ```bash
-# (Aanbevolen) maak een virtuele omgeving en installeer dependencies voor dit project
+cd neural_hydrology          # Git repo-root (deze map)
 python -m venv .venv
-source .venv/bin/activate
-pip install -r neural_hydrology/requirements.txt
-
-# Of kloon de repository en installeer lokaal
-git clone https://github.com/neuralhydrology/neuralhydrology.git
-cd neuralhydrology
+source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -e .
+cp .env.example .env
+```
+
+Code staat in `src/neural_hydrology/`; `config.yml`, `.env` en data staan op **repo-root** (de Git folder).
+
+### Configuratie (`.env`)
+
+Eén bestand op repo-root: `cp .env.example .env`. Paden worden opgelost via `neural_hydrology.paths` (`src/neural_hydrology/paths.py`).
+
+**Regel:** shell-omgevingsvariabelen overschrijven `.env`. Relatieve paden (`data`, `data_ens`, …) zijn relatief aan `NEURAL_HYDROLOGY_ROOT`.
+
+| Variabele | Lokaal | Databricks |
+|-----------|--------|------------|
+| `NEURAL_HYDROLOGY_ROOT` | leeg (auto repo-root) | `/Workspace/Shared/neural_hydrology_fork` |
+| `DATA_DIR` | `data` | optioneel: `/Volumes/.../data_neuralhydrology/input` |
+| `DATA_ENS_DIR` | `data_ens` | idem of pad op Volume |
+| `INFERENCE_RUNS_DIR` | `inference_runs` | idem of pad op Volume |
+| `CONFIG_PATH` | `config.yml` | `/Workspace/Shared/neural_hydrology_fork/config.yml` |
+| `RUNS_DIR` | `runs` | idem of pad op Volume |
+| `OUTPUT_DIR` | `runs` (default) | `/Volumes/dbw_datascience_tst_weu_001/default/data_neuralhydrology/output` |
+| `BASE_CONFIG` | leeg (= `CONFIG_PATH`) | `/Workspace/Shared/neural_hydrology_fork/config.yml` |
+| `HPO_OUTPUT_DIR` | leeg (= `OUTPUT_DIR/HPO`) | leeg (= `OUTPUT_DIR/HPO`) |
+| `RETRAIN_BASE_DIR` | leeg (= `OUTPUT_DIR/BATCH_RETRAIN`) | leeg (= `OUTPUT_DIR/BATCH_RETRAIN`) |
+| `MLFLOW_TRACKING_URI` | leeg | `databricks` |
+| `KNMI_API_URL` | `https://api.dataplatform.knmi.nl/open-data` | zelfde |
+| `KNMI_API_KEY` | verplicht (preprocessing) | verplicht |
+| `ENSEMBLE_STARTTIME` | optioneel, bv. `2026040718` | optioneel |
+| `DOWNLOAD_ENSEMBLE` | `1` (download) of `0` (cache) | `1` of `0` |
+| `SOURCE_EXPERIMENT_NAME` | optioneel (`best_model.py`) | optioneel, bv. `/Shared/hdsr_lstm_optuna_...` |
+| `SOURCE_TRIAL_NUMBER` | `0` (default) | trial-nummer MLflow |
+
+Zie ook inline uitleg in [`.env.example`](.env.example).
+
+**Lokaal**
+
+```bash
+pip install -e .
+cp .env.example .env
+python -m neural_hydrology.preprocessing.create_timeseries_files --days 30 --basin-id AFVG1
+python -m neural_hydrology.training.run_model
+```
+
+**Databricks**
+
+```bash
+cd /Workspace/Shared/neural_hydrology_fork
+pip install -e .
+python -m neural_hydrology.training.hyperparameter_optimalisatie
 ```
 
 ### Training
 
 ```bash
-# Train een model met de configuratie in neural_hydrology/config.yml
-python neural_hydrology/scripts/training/run_model.py
-
-# Batch training voor single LSTM model per afvoergebied
-python neural_hydrology/scripts/training/batch_train_single.py
+python -m neural_hydrology.training.run_model
+python -m neural_hydrology.training.batch_train_single
 ```
 
 ### Analyse
 
 ```bash
-# Evaluatie/overzicht beste modellen
-python neural_hydrology/scripts/analysis/best_model.py
+python -m neural_hydrology.analysis.best_model
 ```
 
 ## Databricks
 
-Deze branch is bedoeld om het NeuralHydrology-framework te draaien op Databricks. De scripts in `scripts/training/` zijn hierop ingericht (paden onder `Workspace` en `Catalog/Volumes`, rekenkracht via `Compute`, en MLflow tracking via `Jobs & Pipelines`). In het project is gewerkt in de instantie `dbw-datascience-tst-weu-001` binnen Databricks.
+Deze branch is bedoeld om het NeuralHydrology-framework te draaien op Databricks. De trainingsscripts zijn hierop ingericht (paden onder `Workspace` en `Catalog/Volumes`, rekenkracht via `Compute`, en MLflow tracking via `Jobs & Pipelines`). In het project is gewerkt in de instantie `dbw-datascience-tst-weu-001` binnen Databricks.
 
 ### Installatie en update van repo in Databricks
 
@@ -135,7 +171,7 @@ Deze branch is bedoeld om het NeuralHydrology-framework te draaien op Databricks
 - **Lokale wijzigingen eerst veiligstellen (best practise)**: als er in Databricks lokale wijzigingen zijn, commit en push die eerst naar GitHub voordat je gaat pullen.
 - **Branch kiezen**: selecteer linksboven de branch die je uit GitHub wilt ophalen/gaan gebruiken in Databricks.
 - **Pull uitvoeren**: klik rechtsboven op *Pull* om de laatste wijzigingen op te halen.
-- **Let op paden naar `config.yml`**: sommige scripts verwijzen naar een vaste plek voor de basisconfig, bv. `BASE_CONFIG = "/Workspace/Shared/neural_hydrology_fork/config.yml"`. Zorg dat dit pad klopt voor jouw Git folder-locatie in *Workspace*.
+- **Configureer `.env`**: zie [Configuratie (`.env`)](#configuratie-env) → Databricks.
 
 #### Data Volume (input/output)
 
@@ -153,7 +189,8 @@ Deze branch is bedoeld om het NeuralHydrology-framework te draaien op Databricks
 #### Libraries installeren op de compute
 
 - Klik op de compute → tab *Libraries* → *Install new*.
-- Navigeer naar `requirements.txt` en klik *Install*.
+- Installeer het project editable vanuit de Git folder: `pip install -e /Workspace/Shared/<jouw-git-folder>` (of via terminal in de repo-root).
+- Zorg dat `.env` op repo-root het Databricks-blok bevat (zie `.env.example`).
 
 #### Script als Job draaien (optioneel, aanbevolen voor reproduceerbare runs)
 
@@ -172,15 +209,22 @@ Deze branch is bedoeld om het NeuralHydrology-framework te draaien op Databricks
 
 #### Training van één run
 
-- **Configuratie**: `neural_hydrology/config.yml` is de centrale config.
+- **Configuratie**: `config.yml` in de Git repo-root is de centrale config.
   - **Data**: in deze branch wijst `data_dir` naar een Databricks Volume genaamd `/Volumes/dbw_datascience_tst_weu_001/default/data_neuralhydrology/input`.
   - **Outputs**: Op Databricks schrijft de repo outputs naar een Volume genaamd `/Volumes/dbw_datascience_tst_weu_001/default/data_neuralhydrology/output`.
-- **Run starten**: voer `neural_hydrology/scripts/training/run_model.py` uit.
-  - Dit script start een run met `config.yml` en maakt daarna test-evaluatie + figuren per polder in de run-folder.
+- **Run starten** (na `pip install -e .` in de Git folder):
+
+```bash
+python -m neural_hydrology.training.run_model
+```
 
 #### Hyperparameter optimalisatie (Optuna + MLflow)
 
-Voor HPO gebruik je `neural_hydrology/scripts/training/hyperparameter_optimalisatie.py`:
+Voor HPO:
+
+```bash
+python -m neural_hydrology.training.hyperparameter_optimalisatie
+```
 
 - **MLflow**: het script zet `MLFLOW_TRACKING_URI=databricks` en logt naar een experiment onder `/Shared/...`.
 - **Belangrijke instellingen in het script**:
@@ -195,7 +239,11 @@ Voor HPO gebruik je `neural_hydrology/scripts/training/hyperparameter_optimalisa
 
 #### Batch retraining van een gekozen HPO-trial
 
-Voor het opnieuw trainen van een specifieke HPO-trial gebruik je `neural_hydrology/scripts/training/batch_train_model.py`:
+Voor het opnieuw trainen van een specifieke HPO-trial:
+
+```bash
+python -m neural_hydrology.training.batch_train_model
+```
 
 - **MLflow**: het script zet `MLFLOW_TRACKING_URI=databricks` en logt de retrain-runs naar een apart MLflow experiment.
 - **Belangrijke instellingen in het script**:
@@ -254,19 +302,17 @@ Deze sectie beschrijft de **operationele keten** van (1) opbouwen van ensemble-t
 
 ### 1) Preprocessing: ensemble tijdreeksen bouwen
 
-Het script `scripts/preprocessing/create_timeseries_files.py` bouwt per afvoergebied (`SHAPE_ID`) één NetCDF in `data_ens/time_series/<SHAPE_ID>.nc` met **30 ensembleleden** per variabele (`neerslag_1` … `neerslag_30`, idem voor `temperatuur`, `u`, `v`, `straling`).
+Het module `neural_hydrology.preprocessing.create_timeseries_files` bouwt per afvoergebied (`SHAPE_ID`) één NetCDF in `data_ens/time_series/<SHAPE_ID>.nc` met **30 ensembleleden** per variabele (`neerslag_1` … `neerslag_30`, idem voor `temperatuur`, `u`, `v`, `straling`).
 
 ### Bronnen en volgorde
 
 1. **Historisch meteo (Cabauw)** — KNMI **klimatologie uurgegevens** (station 348 Cabauw) + waar nodig aanvulling uit KNMI Open Data **10-minuut** stationdata: temperatuur, zonnestraling, wind als `u`/`v`.
 2. **Historisch neerslag** — KNMI **MFBS** (radar, uur) gecombineerd met **RTCOR** (5-min → **uursom (mm)** per gebied; aggregatie met minimum-aantal 5-min stappen).
-3. **Forecast** — KNMI Open Data **HARMONIE CY43**: composiet uit **twee datasets** (`harmonie_arome_cy43_p2a` meteo + `harmonie_arome_cy43_p2b` renew/straling), tot **30 leden** over een rollend 6-uurs venster (`ENSEMBLE_STARTTIME` in `neural_hydrology/.env`).
+3. **Forecast** — KNMI Open Data **HARMONIE CY43**: composiet uit **twee datasets** (`harmonie_arome_cy43_p2a` meteo + `harmonie_arome_cy43_p2b` renew/straling), tot **30 leden** over een rollend 6-uurs venster (`ENSEMBLE_STARTTIME` in `.env` op repo-root).
 
-### Configuratie (`neural_hydrology/.env`)
+### KNMI in `.env`
 
-- `KNMI_API_URL`, `KNMI_API_KEY` — Open Data API.
-- `ENSEMBLE_STARTTIME` — `YYYYMMDDHH` UTC, oudste run in het 6-uurs composiet (uur “1”).
-- `DOWNLOAD_ENSEMBLE` — `1` downloaden; `0` alleen lokale `.tar` in `data_ens/_tmp_harmonie/` gebruiken.
+`KNMI_API_KEY` (verplicht), optioneel `ENSEMBLE_STARTTIME` (`YYYYMMDDHH` UTC), `DOWNLOAD_ENSEMBLE` (`1` = download, `0` = alleen cache in `data_ens/_tmp_harmonie/`).
 
 ### Gedrag bij ontbrekende waarden (na merge historisch + forecast)
 
@@ -280,9 +326,9 @@ Het script `scripts/preprocessing/create_timeseries_files.py` bouwt per afvoerge
 ### Uitvoeren
 
 ```bash
-# Conda-omgeving bijvoorbeeld: conda activate neuralhydrology
-python neural_hydrology/scripts/preprocessing/create_timeseries_files.py --days 365
-python neural_hydrology/scripts/preprocessing/create_timeseries_files.py --days 30 --basin-id AFVG1
+# Na pip install -e . in de repo-root:
+python -m neural_hydrology.preprocessing.create_timeseries_files --days 365
+python -m neural_hydrology.preprocessing.create_timeseries_files --days 30 --basin-id AFVG1
 ```
 
 ```mermaid
@@ -318,15 +364,16 @@ flowchart TD
 ```
 
 ### 2) Inference: ensemble verwachtingen draaien met getraind model
-Het script `scripts/inference/run_model.py` draait **ensemble inference** met een eerder getrainde NeuralHydrology run (map met `config.yml` en checkpoints) op de NetCDF’s uit `data_ens/time_series/`.
+
+`neural_hydrology.inference.run_model` draait **ensemble inference** met een eerder getrainde NeuralHydrology run (map met `config.yml` en checkpoints) op de NetCDF’s uit `data_ens/time_series/`.
 
 - **Input**
   - **Modelrun**: `--run_dir <pad/naar/runs/<run_id>>` (moet `config.yml` bevatten)
-  - **Data**: `--data_dir neural_hydrology/data_ens` (default) met `time_series/` en `attributes/`
+  - **Data**: `--data_dir` default = `data_ens/` op repo-root (via `DATA_ENS_DIR` in `.env`)
   - **Basin lijst**: optioneel `--basin_file <pad>` (default: `<data_dir>/hdsr_polders.txt`)
-  - **Ensemble starttijd**: `ENSEMBLE_STARTTIME=YYYYMMDDHH` (UTC) in `neural_hydrology/.env` (optioneel; zonder deze waarde start inference vanaf het begin van de beschikbare NetCDF-periode, rekening houdend met warm-up)
+  - **Ensemble starttijd**: `ENSEMBLE_STARTTIME=YYYYMMDDHH` (UTC) in `.env` (optioneel)
 
-- **Gedrag**
+- **Uitvoering**
   - Bepaalt automatisch een **testperiode** op basis van de NetCDF-periode en de benodigde **warm-up** uit de trainingconfig (`seq_length` en `predict_last_n`, voor alle `use_frequencies`).
   - Loopt per ensemblelid \(k = 1..N\) en selecteert inputs via kolommen `<variabele>_<k>` uit de NetCDF (bijv. `neerslag_17`), die intern als `neerslag` etc. worden aangeboden aan het model.
 
@@ -339,11 +386,11 @@ Het script `scripts/inference/run_model.py` draait **ensemble inference** met ee
 #### Uitvoeren
 
 ```bash
-# Voorbeeld: 30-leden ensemble inference op de meest recente data_ens
-python neural_hydrology/scripts/inference/run_model.py \
-  --run_dir neural_hydrology/runs/<jouw_run_map> \
-  --data_dir neural_hydrology/data_ens \
-  --out_dir neural_hydrology/inference_runs \
+# Voorbeeld: 30-leden ensemble inference (vanuit repo-root, na pip install -e .)
+python -m neural_hydrology.inference.run_model \
+  --run_dir runs/<jouw_run_map> \
+  --data_dir data_ens \
+  --out_dir inference_runs \
   --n_ensembles 30
 ```
 

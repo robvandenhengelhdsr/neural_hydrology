@@ -2,12 +2,12 @@
 
 
 import os
-os.environ["MLFLOW_TRACKING_URI"] = "databricks"
 
 from pathlib import Path
 import shutil
 import yaml
 import torch
+from neural_hydrology.paths import get_env, get_path, load_env
 from neuralhydrology.nh_run import start_run
 from neuralhydrology.utils.config import Config
 from tensorboard.backend.event_processing.event_accumulator import EventAccumulator
@@ -19,17 +19,22 @@ import mlflow
 import numpy as np
 import datetime
 
+load_env()
+mlflow_uri = get_env("MLFLOW_TRACKING_URI", "databricks")
+if mlflow_uri:
+    os.environ["MLFLOW_TRACKING_URI"] = mlflow_uri
+
 EXPERIMENT_NAME = "runs" # "LSTM_wonderful_williamson_20260407_124224"
 TRIAL_NAME = "trial_28"
-PATH_HPO = Path(f"/Volumes/dbw_datascience_tst_weu_001/default/data_neuralhydrology/output/HPO/{EXPERIMENT_NAME}")
+PATH_HPO = get_path("HPO_OUTPUT_DIR") / EXPERIMENT_NAME
 NUMBER_OF_RETRAININGS = 2
 
-RETRAIN_BASE_DIR = Path("/Volumes/dbw_datascience_tst_weu_001/default/data_neuralhydrology/output/BATCH_RETRAIN")
+RETRAIN_BASE_DIR = get_path("RETRAIN_BASE_DIR")
 DESTINATION_DIR = RETRAIN_BASE_DIR / f"{EXPERIMENT_NAME}_{TRIAL_NAME}"
 COPIED_TRIAL_DIR = DESTINATION_DIR / TRIAL_NAME
 MLFLOW_EXPERIMENT_NAME = f"/Shared/{EXPERIMENT_NAME}_{TRIAL_NAME}_retrain"
 
-mlflow.set_tracking_uri("databricks")
+mlflow.set_tracking_uri(os.environ.get("MLFLOW_TRACKING_URI", "databricks"))
 mlflow.set_experiment(MLFLOW_EXPERIMENT_NAME)
 
 

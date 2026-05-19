@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-import sys
 import zipfile
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
@@ -10,12 +9,9 @@ from pathlib import Path
 import pandas as pd
 import re
 
-_PROJECT_ROOT = Path(__file__).resolve().parents[3]
-if str(_PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(_PROJECT_ROOT))
-
-from neural_hydrology.scripts.preprocessing.meteo.knmi_open_data import KnmiOpenDataClient
-from neural_hydrology.scripts.preprocessing.meteo.radar_hdf5 import (
+from neural_hydrology.paths import get_path
+from neural_hydrology.preprocessing.meteo.knmi_open_data import KnmiOpenDataClient
+from neural_hydrology.preprocessing.meteo.radar_hdf5 import (
     read_knmi_radar_h5,
     read_polders,
     zonal_mean_precip_mm,
@@ -85,8 +81,7 @@ def import_mfbs_historical_last_year(*, days: int = 365, end_utc: datetime | Non
         end_utc = end_utc.astimezone(timezone.utc).replace(minute=0, second=0, microsecond=0)
     start_utc = end_utc - timedelta(days=days)
 
-    nh_root = Path(__file__).resolve().parents[3]
-    data_dir = nh_root / "data_ens"
+    data_dir = get_path("DATA_ENS_DIR")
     tmp_dir = data_dir / "_tmp_radar_mfbs"
     zip_dir = tmp_dir / "zips"
     extract_dir = tmp_dir / "extract"

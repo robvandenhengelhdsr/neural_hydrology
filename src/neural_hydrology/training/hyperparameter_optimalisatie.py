@@ -1,9 +1,9 @@
 import os
-os.environ["MLFLOW_TRACKING_URI"] = "databricks"
 
 from pathlib import Path
 import yaml
 import torch
+from neural_hydrology.paths import get_env, get_path, load_env
 from neuralhydrology.utils.config import Config
 from neuralhydrology.nh_run import start_run
 from tensorboard.backend.event_processing.event_accumulator import EventAccumulator
@@ -17,16 +17,21 @@ import datetime
 from names_generator import generate_name
 from collections import defaultdict
 
+load_env()
+mlflow_uri = get_env("MLFLOW_TRACKING_URI", "databricks")
+if mlflow_uri:
+    os.environ["MLFLOW_TRACKING_URI"] = mlflow_uri
+
 NAME = generate_name()
 EXPERIMENT_NAME = f"LSTM_{NAME}_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}"
 N_TRIALS = 50
-BASE_CONFIG = "/Workspace/Shared/neural_hydrology_fork/config.yml"
-OUTPUT_DIR = Path("/Volumes/dbw_datascience_tst_weu_001/default/data_neuralhydrology/output")
-RUNS_DIR = OUTPUT_DIR / f"HPO/{EXPERIMENT_NAME}"
+BASE_CONFIG = str(get_path("BASE_CONFIG"))
+OUTPUT_DIR = get_path("OUTPUT_DIR")
+RUNS_DIR = get_path("HPO_OUTPUT_DIR") / EXPERIMENT_NAME
 RUNS_DIR.mkdir(parents=True, exist_ok=True)
 os.chdir(OUTPUT_DIR)
 
-mlflow.set_tracking_uri("databricks")  # if running on Databricks this is often already configured
+mlflow.set_tracking_uri(os.environ.get("MLFLOW_TRACKING_URI", "databricks"))
 mlflow.set_experiment(f"/Shared/{EXPERIMENT_NAME}")
 
 def get_run_folder_by_name_timestamp(trial_dir, experiment_name):

@@ -9,8 +9,8 @@ import pandas as pd
 import xarray as xr
 import netCDF4
 import yaml
-from dotenv import dotenv_values
 
+from neural_hydrology.paths import get_path, load_env
 from neuralhydrology.datasetzoo.genericdataset import GenericDataset
 from neuralhydrology.datautils.utils import get_frequency_factor, sort_frequencies
 from neuralhydrology.evaluation import get_tester
@@ -27,10 +27,10 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--run_dir", type=str, required=True,
                         help="Path to trained run directory (contains config.yml).")
     parser.add_argument("--data_dir", type=str,
-                        default=str((Path(__file__).parent.parent.parent / "data_ens").resolve()),
+                        default=str(get_path("DATA_ENS_DIR")),
                         help="Ensemble data directory containing time_series/ and attributes/.")
     parser.add_argument("--out_dir", type=str,
-                        default=str((Path(__file__).parent.parent.parent / "inference_runs").resolve()),
+                        default=str(get_path("INFERENCE_RUNS_DIR")),
                         help="Output directory.")
     parser.add_argument("--n_ensembles", type=int, default=30, help="Number of ensemble members.")
     parser.add_argument("--basin_file", type=str, default=None,
@@ -329,7 +329,7 @@ def main() -> None:
     out_dir = Path(args.out_dir).resolve()
     basin_file = Path(args.basin_file).resolve() if args.basin_file else (data_dir / "hdsr_polders.txt")
 
-    env = dotenv_values(Path(__file__).resolve().parents[2] / ".env")
+    env = load_env()
     ensemble_starttime = _parse_ensemble_starttime(env.get("ENSEMBLE_STARTTIME"))
 
     time_series_dir = data_dir / "time_series"

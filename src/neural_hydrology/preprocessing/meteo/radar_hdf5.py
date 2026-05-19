@@ -13,6 +13,8 @@ import pandas as pd
 from rasterio.transform import from_origin
 from rasterstats import zonal_stats
 
+from neural_hydrology.paths import get_path
+
 LOGGER = logging.getLogger(__name__)
 
 
@@ -173,8 +175,7 @@ def read_knmi_radar_h5(path: Path) -> RadarGrid:
 
 
 def read_polders() -> gpd.GeoDataFrame:
-    nh_root = Path(__file__).resolve().parents[3]
-    attr_path = nh_root / "data_ens" / "attributes" / "polders_data_aangevuld.csv"
+    attr_path = get_path("DATA_ENS_DIR") / "attributes" / "polders_data_aangevuld.csv"
     df = pd.read_csv(attr_path)
     geom = gpd.GeoSeries.from_wkt(df["geom_simple"])
     gdf = gpd.GeoDataFrame(df[["SHAPE_ID"]].copy(), geometry=geom, crs="EPSG:28992")

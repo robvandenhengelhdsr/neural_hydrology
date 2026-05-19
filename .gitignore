@@ -11,6 +11,11 @@ inference_runs/
 *.log
 data_ens/
 
+# Python packaging
+*.egg-info/
+dist/
+build/
+
 # Python cache en temporary files
 __pycache__/
 *.pyc

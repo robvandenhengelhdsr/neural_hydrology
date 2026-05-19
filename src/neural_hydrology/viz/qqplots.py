@@ -9,7 +9,8 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import xarray as xr
 
-from utils.results import evaluate
+from neural_hydrology.paths import get_path
+from neural_hydrology.utils.results import evaluate
 
 DISCHARGE_CSV_COL_NAMES = {
     "gemaal": "debiet_x_IB",
@@ -59,7 +60,7 @@ def weekly_totals_from_csv(
 
 def get_area(basin: str) -> float:
     """Get the area of given `basin` from the static attributes csv"""
-    csv_path = Path(__file__).parent.parent.parent / "data" / "attributes" / "polders_data_aangevuld.csv"
+    csv_path = get_path("DATA_DIR") / "attributes" / "polders_data_aangevuld.csv"
     df = pd.read_csv(csv_path)
     row = df.loc[df["SHAPE_ID"] == basin, "oppervlak"]
     if row.empty:
@@ -286,7 +287,7 @@ if __name__ == "__main__":
     run_dir = "C:/Users/leendert.vanwolfswin/Documents/hdsr/runs/runs/development_run_23_2503_122253"
     netcdf_output_dir = Path(run_dir) / "netcdf"
     netcdf_output_dir.mkdir(parents=True, exist_ok=True)
-    data_dir = Path(__file__).parent.parent.parent / "data"
+    data_dir = get_path("DATA_DIR")
     raw_discharges_dir = data_dir / "raw_discharge_data"
     basins_file = data_dir / "hdsr_polders.txt"
     with basins_file.open("r") as f:

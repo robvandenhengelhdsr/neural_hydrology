@@ -18,9 +18,8 @@ from rasterio.transform import from_origin
 
 import xarray as xr
 
-from dotenv import dotenv_values
-
-from neural_hydrology.scripts.preprocessing.meteo.knmi_open_data import KnmiOpenDataClient, KnmiRequestBudgetExceeded
+from neural_hydrology.paths import get_path, load_env
+from neural_hydrology.preprocessing.meteo.knmi_open_data import KnmiOpenDataClient, KnmiRequestBudgetExceeded
 
 LOGGER = logging.getLogger(__name__)
 
@@ -34,8 +33,7 @@ def _knmi_latest_filenames(client: KnmiOpenDataClient, *, dataset: str, n: int, 
 
 
 def _read_polders_4326() -> gpd.GeoDataFrame:
-    nh_root = Path(__file__).resolve().parents[3]
-    attr_path = nh_root / "data_ens" / "attributes" / "polders_data_aangevuld.csv"
+    attr_path = get_path("DATA_ENS_DIR") / "attributes" / "polders_data_aangevuld.csv"
     df = pd.read_csv(attr_path)
     geom_series = gpd.GeoSeries.from_wkt(df["geom_simple"])
     gdf = gpd.GeoDataFrame(df[["SHAPE_ID"]].copy(), geometry=geom_series, crs="EPSG:28992")
@@ -229,12 +227,11 @@ def load_harmonie_ensemble_forecast_by_basin() -> dict[str, dict[str, object]]:
     LOGGER.setLevel(logging.INFO)
     LOGGER.info("import_harmonie_ensemble_forecast: start")
 
-    nh_root = Path(__file__).resolve().parents[3]
-    data_dir = nh_root / "data_ens"
+    data_dir = get_path("DATA_ENS_DIR")
     tmp_dir = data_dir / "_tmp_harmonie"
     tmp_dir.mkdir(parents=True, exist_ok=True)
 
-    env = dotenv_values(nh_root / ".env")
+    env = load_env()
     client = KnmiOpenDataClient.from_neural_hydrology_env().with_request_budget(max_requests=MAX_API_REQUESTS_PER_RUN)
 
     # ENSEMBLE settings:

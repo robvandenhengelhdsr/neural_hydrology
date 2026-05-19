@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import logging
 import re
-import sys
 import urllib.parse
 import urllib.request
 from datetime import datetime, timedelta, timezone
@@ -13,13 +12,8 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
-_PROJECT_ROOT = Path(__file__).resolve().parents[3]
-if str(_PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(_PROJECT_ROOT))
-
-from dotenv import dotenv_values
-
-from neural_hydrology.scripts.preprocessing.meteo.knmi_open_data import (
+from neural_hydrology.paths import get_path, load_env
+from neural_hydrology.preprocessing.meteo.knmi_open_data import (
     HISTORICAL_FETCH_END_OFFSET_HOURS,
     KnmiOpenDataClient,
     KnmiRequestBudgetExceeded,
@@ -45,8 +39,7 @@ def _end_utc_from_env_or_now() -> datetime:
     If `ENSEMBLE_STARTTIME` (YYYYMMDDHH) is set in `neural_hydrology/.env`, use it.
     Otherwise, fall back to current UTC hour endtime.
     """
-    nh_root = Path(__file__).resolve().parents[3]
-    env = dotenv_values(nh_root / ".env")
+    env = load_env()
     est = env.get("ENSEMBLE_STARTTIME")
     if est:
         try:
@@ -515,8 +508,7 @@ def load_knmi_station_cabauw_hourly(*, days: int = 365, station_name_contains: s
     start_ts = pd.Timestamp(start_utc).tz_convert("UTC")
     end_ts = pd.Timestamp(end_utc).tz_convert("UTC")
 
-    nh_root = Path(__file__).resolve().parents[3]
-    tmp_dir = nh_root / "data_ens" / "_tmp_knmi_station"
+    tmp_dir = get_path("DATA_ENS_DIR") / "_tmp_knmi_station"
     tmp_10m = tmp_dir / "tenmin"
     tmp_10m.mkdir(parents=True, exist_ok=True)
 

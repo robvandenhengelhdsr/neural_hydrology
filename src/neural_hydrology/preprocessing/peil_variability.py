@@ -9,6 +9,8 @@ import geopandas as gpd  # not added to requirements.txt to avoid a large depend
 import numpy as np
 import pandas as pd
 
+from neural_hydrology.paths import get_path
+
 LAYER_NAME = "Peilgebied"
 
 
@@ -19,7 +21,7 @@ def read_peilgebied(path: Path) -> gpd.GeoDataFrame:
 
 def read_polders(source_crs="EPSG:28992", target_crs: str = "EPSG:28992") -> gpd.GeoDataFrame:
 
-    path = Path(__file__).parent.parent.parent / "data" / "attributes" / "polders_data_aangevuld.csv"
+    path = get_path("DATA_DIR") / "attributes" / "polders_data_aangevuld.csv"
     df = pd.read_csv(path)
     geom_series = gpd.GeoSeries.from_wkt(df.geom_simple)
     gdf = gpd.GeoDataFrame(data=df, geometry=geom_series, crs=source_crs)
@@ -29,7 +31,7 @@ def read_polders(source_crs="EPSG:28992", target_crs: str = "EPSG:28992") -> gpd
 
 def write_polders(polders_gdf: gpd.GeoDataFrame, crs: str = "EPSG:28992") -> gpd.GeoDataFrame:
 
-    path = Path(__file__).parent.parent.parent / "data" / "attributes" / "polders_data_aangevuld.csv"
+    path = get_path("DATA_DIR") / "attributes" / "polders_data_aangevuld.csv"
     polders_gdf = polders_gdf.to_crs("EPSG:28992")
     polders_gdf.assign(geom_simple=polders_gdf.geometry.apply(lambda g: g.wkt)) \
         .drop(columns="geometry") \
