@@ -386,6 +386,7 @@ python jobs/run_ensembles.py
 - **Config**: `ENSEMBLE_FORECAST_TABLE` in `.env` (verplicht op Databricks), drie-delige naam `catalog.schema.table`
 - **Refresh**: bij elke run eerst `TRUNCATE TABLE`, daarna volledige reload uit de NetCDF-periode
 - **Kolommen**: `datetime`, `ensemble_id`, `afvoergeb_id`, `value`
+- **Power BI**: rapport en handleiding in [`../powerbi/`](../powerbi/) (tabel `dbw_datascience_tst_weu_001.default.output_forecast`)
 
 ```bash
 python jobs/postprocess_ensembles.py
