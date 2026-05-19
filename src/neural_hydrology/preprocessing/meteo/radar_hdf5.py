@@ -174,9 +174,25 @@ def read_knmi_radar_h5(path: Path) -> RadarGrid:
         )
 
 
+def _read_hdsr_basin_ids() -> list[str]:
+    basin_file = get_path("DATA_ENS_DIR") / "hdsr_polders.txt"
+    if not basin_file.is_file():
+        raise FileNotFoundError(f"HDSR polder list not found: {basin_file}")
+    basin_ids = [line.strip() for line in basin_file.read_text().splitlines() if line.strip()]
+    if not basin_ids:
+        raise RuntimeError(f"No basin IDs in {basin_file}")
+    return basin_ids
+
+
 def read_polders() -> gpd.GeoDataFrame:
     attr_path = get_path("DATA_ENS_DIR") / "attributes" / "polders_data_aangevuld.csv"
+    basin_ids = _read_hdsr_basin_ids()
     df = pd.read_csv(attr_path)
+    df["SHAPE_ID"] = df["SHAPE_ID"].astype(str)
+    df = df[df["SHAPE_ID"].isin(basin_ids)]
+    missing = sorted(set(basin_ids) - set(df["SHAPE_ID"]))
+    if missing:
+        raise RuntimeError(f"Basins in hdsr_polders.txt not found in attributes CSV: {missing[:10]}")
     geom = gpd.GeoSeries.from_wkt(df["geom_simple"])
     gdf = gpd.GeoDataFrame(df[["SHAPE_ID"]].copy(), geometry=geom, crs="EPSG:28992")
     return gdf

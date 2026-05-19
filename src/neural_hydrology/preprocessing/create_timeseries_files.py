@@ -163,6 +163,32 @@ def _expand_det_to_ens(values: np.ndarray, n_ens: int = 30) -> np.ndarray:
     return np.repeat(v, repeats=n_ens, axis=1)
 
 
+def _load_streefpeil_last_non_nan(basin_id: str, *, train_time_series_dir: Path) -> float:
+    nc_path = train_time_series_dir / f"{basin_id}.nc"
+    if not nc_path.is_file():
+        raise RuntimeError(f"Training time series not found for basin {basin_id}: {nc_path}")
+    with xr.open_dataset(nc_path) as ds:
+        if "streefpeil" not in ds:
+            raise RuntimeError(f"Variable 'streefpeil' missing in training NetCDF for basin {basin_id}: {nc_path}")
+        values = np.asarray(ds["streefpeil"].values, dtype=np.float64)
+    valid = values[~np.isnan(values)]
+    if valid.size == 0:
+        raise RuntimeError(f"No valid (non-NaN) streefpeil values for basin {basin_id} in {nc_path}")
+    return float(valid[-1])
+
+
+def _load_streefpeil_by_basin(basin_ids: list[str], *, train_time_series_dir: Path) -> dict[str, float]:
+    out: dict[str, float] = {}
+    for bid in basin_ids:
+        out[bid] = _load_streefpeil_last_non_nan(bid, train_time_series_dir=train_time_series_dir)
+        LOGGER.debug("streefpeil gebied=%s: %.4f mNAP", bid, out[bid])
+    return out
+
+
+def _constant_member_array(n_times: int, value: float, n_ens: int = 30) -> np.ndarray:
+    return np.full((n_times, n_ens), value, dtype=np.float32)
+
+
 def _new_ds(date: np.ndarray) -> xr.Dataset:
     enc = ExampleEncoding()
     ds = xr.Dataset(coords={"date": ("date", date.astype("datetime64[ns]"))})
@@ -311,6 +337,14 @@ def create_timeseries_files(
         basin_ids = requested
     LOGGER.info("Writing per-basin netCDF for %d gebieden to %s", len(basin_ids), out_dir)
 
+    train_ts_dir = get_path("DATA_DIR") / "time_series"
+    LOGGER.info(
+        "Loading streefpeil (last non-NaN) from training NetCDFs in %s for %d gebieden...",
+        train_ts_dir,
+        len(basin_ids),
+    )
+    streefpeil_by_basin = _load_streefpeil_by_basin(basin_ids, train_time_series_dir=train_ts_dir)
+
     # Historical deterministic series (same for all basins except precipitation)
     hist_date = pd.DatetimeIndex(df_meteo.index)
 
@@ -347,6 +381,10 @@ def create_timeseries_files(
             missing_cfg=missing_cfg,
             basin_label=str(bid),
         )
+
+        streef_val = streefpeil_by_basin[bid]
+        streef_arr = _constant_member_array(int(ds.sizes["date"]), streef_val)
+        _add_member_vars(ds, "streefpeil", streef_arr, units="mNAP")
 
         out_path = out_dir / f"{bid}.nc"
         ds.to_netcdf(out_path)

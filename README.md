@@ -302,7 +302,9 @@ Deze sectie beschrijft de **operationele keten** van (1) opbouwen van ensemble-t
 
 ### 1) Preprocessing: ensemble tijdreeksen bouwen
 
-Het module `neural_hydrology.preprocessing.create_timeseries_files` bouwt per afvoergebied (`SHAPE_ID`) één NetCDF in `data_ens/time_series/<SHAPE_ID>.nc` met **30 ensembleleden** per variabele (`neerslag_1` … `neerslag_30`, idem voor `temperatuur`, `u`, `v`, `straling`).
+Het module `neural_hydrology.preprocessing.create_timeseries_files` bouwt per afvoergebied (`SHAPE_ID`) één NetCDF in `data_ens/time_series/<SHAPE_ID>.nc` met **30 ensembleleden** per variabele (`neerslag_1` … `neerslag_30`, idem voor `temperatuur`, `u`, `v`, `straling`, `streefpeil`).
+
+- **Streefpeil** — constant over de volledige `date`-as: laatste niet-NaN waarde uit `DATA_DIR/time_series/<SHAPE_ID>.nc` (training), identiek in `streefpeil_1` … `streefpeil_30` (`units`: `mNAP`).
 
 ### Bronnen en volgorde
 
@@ -405,4 +407,5 @@ Dit project is ontwikkeld voor onderzoek binnen HDSR. Voor gebruik van de neural
 ## Referenties
 
 - Kratzert, F., et al. (2019). "Towards learning universal, regional, and local hydrological behaviors via machine learning applied to large-sample datasets." Hydrology and Earth System Sciences.
-- [NeuralHydrology Documentation](https://neuralhydrology.readthedocs.io/)
+- [NeuralHydrology Documentatie](https://neuralhydrology.readthedocs.io/)
+- [KNMI HARMONI Documentatie](https://www.knmidata.nl/open-data/harmonie)
