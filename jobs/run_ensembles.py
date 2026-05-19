@@ -3,7 +3,7 @@
 Databricks Job entrypoint: 30-member ensemble inference for all HDSR polders.
 
 Runs ``neural_hydrology.inference.run_model`` with paths from ``.env``
-(``INFERENCE_RUN_DIR`` / ``RUNS_DIR``, ``DATA_ENS_DIR``, ``INFERENCE_RUNS_DIR``).
+(``BEST_MODEL_DIR`` / ``RUNS_DIR``, ``DATA_ENS_DIR``, ``INFERENCE_RUNS_DIR``).
 
 Databricks (Jobs → Python script):
   Path: /Workspace/Shared/neural_hydrology/jobs/run_ensembles.py
@@ -43,7 +43,7 @@ DEFAULT_N_ENSEMBLES = 30
 def _resolve_run_dir() -> Path:
     """Trained run directory (must contain config.yml)."""
     env = load_env()
-    for key in ("INFERENCE_RUN_DIR", "RUN_DIR"):
+    for key in ("BEST_MODEL_DIR", "RUN_DIR"):
         raw = env.get(key)
         if raw and str(raw).strip():
             path = Path(str(raw)).expanduser()
@@ -66,11 +66,11 @@ def _resolve_run_dir() -> Path:
     if not candidates:
         raise RuntimeError(
             f"No trained run found under {runs_dir}. "
-            "Set INFERENCE_RUN_DIR in .env to the run folder (contains config.yml)."
+            "Set BEST_MODEL_DIR in .env to the run folder (contains config.yml)."
         )
     latest = candidates[-1]
     LOGGER.warning(
-        "INFERENCE_RUN_DIR not set; using newest run under RUNS_DIR: %s",
+        "BEST_MODEL_DIR not set; using newest run under RUNS_DIR: %s",
         latest,
     )
     return latest.resolve()
