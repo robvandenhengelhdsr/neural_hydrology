@@ -14,6 +14,7 @@ def evaluate(
         run_dir: str | Path,
         period: str,
         basins: List[str],
+        epoch: int,
         config_overrides: dict = None,
 ) -> Dict:
     """
@@ -53,7 +54,7 @@ def evaluate(
         config = Config(temp_config_path)
 
     model = get_tester(cfg=config, run_dir=run_dir, period=period, init_model=True)
-    results = model.evaluate(save_results=True, metrics=config.metrics)
+    results = model.evaluate(save_results=False, metrics=config.metrics, epoch=epoch)
     temp_config_path.unlink()
     Path(temp_basin_file_path).unlink()
     return results
