@@ -214,4 +214,5 @@ def log_tensorboard_metrics_to_mlflow(data, run_folder=None):
     if run_folder is not None:
         mlflow.log_param("nh_run_folder", str(run_folder))
 
-    return max_validation_NSE_score
+    best_epoch = int(np.argmax(validation_NSE_scores_mean_1d_1h)) + 1
+    return max_validation_NSE_score, best_epoch

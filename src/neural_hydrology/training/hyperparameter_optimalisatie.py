@@ -259,7 +259,7 @@ def objective(trial):
         )
 
         data = load_validated_tensorboard_scalars(run_folder)
-        max_validation_NSE_score = log_tensorboard_metrics_to_mlflow(data)
+        max_validation_NSE_score, best_epoch = log_tensorboard_metrics_to_mlflow(data)
 
         mlflow.log_artifact(str(config_path), artifact_path="config")
 
