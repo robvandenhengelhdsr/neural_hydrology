@@ -238,13 +238,15 @@ def objective(trial):
                 "(config: log_tensorboard: true, validate_every: 1)."
             )
 
-        # 1. fix variable names: use the _valid suffixed variables
+        # 1. fix variable names: use the _valid suffixed variables TODO: tijdstap er uithalen en definieren als een variabele boven het script
         tag_nse_1d_valid = find_tag(data, 'valid/mean_nse_1d')
         tag_nse_1h_valid = find_tag(data, 'valid/mean_nse_1h')
         tag_median_nse_1d_valid = find_tag(data, 'valid/median_nse_1d')
         tag_median_nse_1h_valid = find_tag(data, 'valid/median_nse_1h')
+
         # 2. validation loss tag (epoch-level)
         tag_loss_valid = find_tag(data, 'valid/avg_loss')
+
         # 3. training loss tag (epoch-level)
         tag_loss_train = find_tag(data, 'train/avg_loss')
 
