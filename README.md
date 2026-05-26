@@ -89,6 +89,7 @@ Alle modules staan onder `src/neural_hydrology/`. Start ze na `pip install -e .`
 cd neural_hydrology          # Git repo-root (deze map)
 python -m venv .venv
 source .venv/bin/activate   # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
 pip install -e .
 cp .env.example .env
 ```
@@ -102,28 +103,28 @@ Eén bestand op repo-root: `cp .env.example .env`. Paden worden opgelost via `ne
 **Regel:** shell-omgevingsvariabelen overschrijven `.env`. Relatieve paden (`data`, `data_ens`, …) zijn relatief aan `NEURAL_HYDROLOGY_ROOT`.
 
 
-| Variabele                 | Lokaal                                          | Databricks                                                                                     |
-| ------------------------- | ----------------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| `NEURAL_HYDROLOGY_ROOT`   | leeg (auto repo-root)                           | `/Workspace/Shared/neural_hydrology_fork`                                                      |
-| `DATA_DIR`                | `data`                                          | optioneel: `/Volumes/.../data_neuralhydrology/input`                                           |
-| `DATA_ENS_DIR`            | `data_ens`                                      | idem of pad op Volume                                                                          |
-| `INFERENCE_RUNS_DIR`      | `inference_runs`                                | idem of pad op Volume                                                                          |
-| `BEST_MODEL_DIR`          | optioneel; leeg = nieuwste run onder `RUNS_DIR` | pad naar getrainde run (bevat `config.yml`)                                                    |
-| `N_ENSEMBLES`             | `30`                                            | aantal ensembleleden bij inference                                                             |
-| `ENSEMBLE_FORECAST_TABLE` | — (niet lokaal)                                 | verplicht voor postprocess-job; bv. `dbw_datascience_tst_weu_001.default.ensemble_forecast_1h` |
-| `CONFIG_PATH`             | `config.yml`                                    | `/Workspace/Shared/neural_hydrology_fork/config.yml`                                           |
-| `RUNS_DIR`                | `runs`                                          | idem of pad op Volume                                                                          |
-| `OUTPUT_DIR`              | `runs` (default)                                | `/Volumes/dbw_datascience_tst_weu_001/default/data_neuralhydrology/output`                     |
-| `BASE_CONFIG`             | leeg (= `CONFIG_PATH`)                          | `/Workspace/Shared/neural_hydrology_fork/config.yml`                                           |
-| `HPO_OUTPUT_DIR`          | leeg (= `OUTPUT_DIR/HPO`)                       | leeg (= `OUTPUT_DIR/HPO`)                                                                      |
-| `RETRAIN_BASE_DIR`        | leeg (= `OUTPUT_DIR/BATCH_RETRAIN`)             | leeg (= `OUTPUT_DIR/BATCH_RETRAIN`)                                                            |
-| `MLFLOW_TRACKING_URI`     | leeg                                            | `databricks`                                                                                   |
-| `KNMI_API_URL`            | `https://api.dataplatform.knmi.nl/open-data`    | zelfde                                                                                         |
-| `KNMI_API_KEY`            | verplicht (preprocessing)                       | verplicht                                                                                      |
-| `ENSEMBLE_STARTTIME`      | optioneel, bv. `2026040718`                     | optioneel                                                                                      |
-| `DOWNLOAD_ENSEMBLE`       | `1` (download) of `0` (cache)                   | `1` of `0`                                                                                     |
-| `SOURCE_EXPERIMENT_NAME`  | optioneel (`best_model.py`)                     | optioneel, bv. `/Shared/hdsr_lstm_optuna_...`                                                  |
-| `SOURCE_TRIAL_NUMBER`     | `0` (default)                                   | trial-nummer MLflow                                                                            |
+| Variabele                 | Lokaal                                          | Databricks                                                                                                      |
+| ------------------------- | ----------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `NEURAL_HYDROLOGY_ROOT`   | leeg (auto repo-root)                           | `/Workspace/Shared/neural_hydrology_fork`                                                                       |
+| `DATA_DIR`                | `data`                                          | `/Volumes/dbw_datascience_tst_weu_001/default/data_neuralhydrology/input`                                     |
+| `DATA_ENS_DIR`            | `data_ens`                                      | `/Volumes/dbw_datascience_tst_weu_001/default/data_neuralhydrology/operationeel/input`                          |
+| `INFERENCE_RUNS_DIR`      | `inference_runs`                                | `/Volumes/dbw_datascience_tst_weu_001/default/data_neuralhydrology/output/inference`                            |
+| `CONFIG_PATH`             | `config.yml`                                    | `/Workspace/Shared/neural_hydrology/config.yml`                                                                 |
+| `RUNS_DIR`                | `runs`                                          | `/Volumes/dbw_datascience_tst_weu_001/default/data_neuralhydrology/output`                                      |
+| `BEST_MODEL_DIR_1` … `_5` | verplicht voor `jobs/run_ensembles.py`          | vijf getrainde runs (elk met `config.yml`); mediaan-bagging over modellen                                       |
+| `N_ENSEMBLES`             | `30`                                            | `30` (HARMONIE-ensembleleden per modelrun)                                                                      |
+| `OUTPUT_DIR`              | `runs`                                          | `/Volumes/dbw_datascience_tst_weu_001/default/data_neuralhydrology/output`                                      |
+| `BASE_CONFIG`             | leeg (= `CONFIG_PATH`)                          | `/Workspace/Shared/neural_hydrology/config.yml` (of leeg)                                                       |
+| `HPO_OUTPUT_DIR`          | leeg (= `OUTPUT_DIR/HPO`)                       | leeg (= `OUTPUT_DIR/HPO`)                                                                                       |
+| `RETRAIN_BASE_DIR`        | leeg (= `OUTPUT_DIR/BATCH_RETRAIN`)             | leeg (= `OUTPUT_DIR/BATCH_RETRAIN`)                                                                             |
+| `MLFLOW_TRACKING_URI`     | leeg                                            | `databricks`                                                                                                    |
+| `KNMI_API_URL`            | `https://api.dataplatform.knmi.nl/open-data`    | zelfde                                                                                                          |
+| `KNMI_API_KEY`            | verplicht (preprocessing)                       | verplicht                                                                                                       |
+| `ENSEMBLE_STARTTIME`      | optioneel; `YYYYMMDDHH` UTC, bv. `2026040718`   | optioneel; oudste run in 6-uurs venster                                                                         |
+| `DOWNLOAD_ENSEMBLE`       | `1` (download) of `0` (cache in `data_ens/_tmp_harmonie/`) | `1` of `0`                                                                                           |
+| `SOURCE_EXPERIMENT_NAME`  | optioneel (`best_model.py`)                     | optioneel, bv. `/Shared/hdsr_lstm_optuna_20260319_120530`                                                       |
+| `SOURCE_TRIAL_NUMBER`     | `0`                                             | trial-nummer MLflow                                                                                             |
+| `ENSEMBLE_FORECAST_TABLE` | — (niet nodig)                                  | verplicht voor `postprocess_ensembles.py`; `dbw_datascience_tst_weu_001.default.output_forecast` (TRUNCATE + reload) |
 
 
 Zie ook inline uitleg in `[.env.example](.env.example)`.
@@ -140,8 +141,8 @@ python -m neural_hydrology.training.run_model
 **Databricks**
 
 ```bash
-cd /Workspace/Shared/neural_hydrology_fork
-pip install -e .
+cd /Workspace/Shared/neural_hydrology
+pip install -r requirements.txt
 python -m neural_hydrology.training.hyperparameter_optimalisatie
 ```
 
@@ -198,7 +199,7 @@ Deze branch is bedoeld om het NeuralHydrology-framework te draaien op Databricks
 #### Libraries installeren op de compute
 
 - Klik op de compute → tab *Libraries* → *Install new*.
-- Installeer het project editable vanuit de Git folder: `pip install -e /Workspace/Shared/<jouw-git-folder>` (of via terminal in de repo-root).
+- Selecteer de Workspace/Shares/neural_hydrology/requirements.txt
 - Zorg dat `.env` op repo-root het Databricks-blok bevat (zie `.env.example`).
 
 #### Script als Job draaien (optioneel, aanbevolen voor reproduceerbare runs)
@@ -344,27 +345,32 @@ flowchart TD
 
 #### 2) Inference: ensemble verwachtingen draaien met getraind model
 
-`neural_hydrology.inference.run_model` draait **ensemble inference** met een eerder getrainde NeuralHydrology run (map met `config.yml` en checkpoints) op de NetCDF’s uit `data_ens/time_series/`.
+**Operationele job (`jobs/run_ensembles.py`)** draait inference met **vijf** getrainde runs (`BEST_MODEL_DIR_1` … `BEST_MODEL_DIR_5` in `.env`). Per HARMONIE-ensemblelid wordt de **mediaan** over de vijf modelvoorspellingen genomen (model-bagging). Output: één NetCDF-set in `INFERENCE_RUNS_DIR/`, compatibel met postprocess en Power BI.
 
-- **Input**
-  - **Modelrun**: `BEST_MODEL_DIR` in `.env`, of `--run_dir <pad/naar/runs/<run_id>>` (moet `config.yml` bevatten)
-  - **Data**: `--data_dir` default = `data_ens/` op repo-root (via `DATA_ENS_DIR` in `.env`)
-  - **Basin lijst**: optioneel `--basin_file <pad>` (default: `<data_dir>/hdsr_polders.txt`)
+**Enkel model (dev/debug):** `neural_hydrology.inference.run_model` via CLI `--run_dir` (geen modelpad in `.env`).
+
+- **Input (operationeel)**
+  - **Modelruns**: `BEST_MODEL_DIR_1` … `BEST_MODEL_DIR_5` (verplicht; elk pad met `config.yml`)
+  - **Data**: `DATA_ENS_DIR` → `data_ens/time_series/`
   - **Ensemble starttijd**: `ENSEMBLE_STARTTIME=YYYYMMDDHH` (UTC) in `.env` (optioneel)
-  - **Aantal leden**: `N_ENSEMBLES` in `.env` (default `30`)
+  - **Aantal HARMONIE-leden**: `N_ENSEMBLES` in `.env` (default `30`)
+- **Input (CLI, één model)**
+  - `--run_dir <pad/naar/runs/<run_id>>`, optioneel `--basin_file`, `--data_dir`, `--out_dir`, `--n_ensembles`
 - **Uitvoering**
-  - Bepaalt automatisch een **testperiode** op basis van de NetCDF-periode en de benodigde **warm-up** uit de trainingconfig (`seq_length` en `predict_last_n`, voor alle `use_frequencies`).
-  - Loopt per ensemblelid k = 1..N en selecteert inputs via kolommen `<variabele>_<k>` uit de NetCDF (bijv. `neerslag_17`), die intern als `neerslag` etc. worden aangeboden aan het model.
+  - Bepaalt automatisch een **testperiode** op basis van de NetCDF-periode en **warm-up** uit de trainingconfig.
+  - Per model en per ensemblelid k = 1..N: inputs via `<variabele>_<k>` uit de NetCDF.
+  - Bagging-job: mediaan over de vijf modellen per `(basin, datetime, ensemble_id)`.
 - **Output**
-  - Schrijft per frequentie één NetCDF in `inference_runs/`:
-    - `inference_runs/polders_hdsr_<freq>.nc`
-  - De NetCDF bevat **groepen per basin** (groepnaam = `SHAPE_ID`) met een `datetime`-as en variabelen per ensemblelid:
-    - `<target>_sim_1`, `<target>_sim_2`, … `<target>_sim_<N>`
+  - `inference_runs/polders_hdsr_<freq>.nc` met groepen per basin en `<target>_sim_1` … `<target>_sim_<N>`
+  - NetCDF-attributen bij bagging: `bagging_n_models=5`, `bagging_method=median`, `run_dirs=...`
 
 ##### Uitvoeren
 
 ```bash
-# Voorbeeld: 30-leden ensemble inference (vanuit repo-root, na pip install -e .)
+# Operationeel: 5 modellen + mediaan-bagging (paden in .env)
+python jobs/run_ensembles.py
+
+# Dev: één model via CLI
 python -m neural_hydrology.inference.run_model \
   --run_dir runs/<jouw_run_map> \
   --data_dir data_ens \
@@ -372,11 +378,7 @@ python -m neural_hydrology.inference.run_model \
   --n_ensembles 30
 ```
 
-**Databricks Job** (paden uit `.env`, na `pip install -e .`):
-
-```bash
-python jobs/run_ensembles.py
-```
+Migreer een oude `.env` met `BEST_MODEL_DIR` naar `BEST_MODEL_DIR_1` … `_5` (vijf verschillende run-mappen).
 
 #### 3) Postprocess: ensemble-resultaat naar Unity Catalog
 
